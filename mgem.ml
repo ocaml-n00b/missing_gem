@@ -1,8 +1,5 @@
 #!/usr/bin/ocaml
 
-#use "./src/list_fun.ml"
-#use "./src/search_deck.ml"
-
 (* General Bindings *)
 let gem = ["Diamond" ; "Pearl" ; "Opal"]
 let typ = ["Solitaire" ; "Pairs" ; "Cluster"]
@@ -27,6 +24,11 @@ type status = {
 exception Quit of unit;;
 Random.self_init ();;
 
+(* load other libraries *)
+#use "./src/list_fun.ml"
+#use "./src/search_deck.ml"
+#use "./src/sheet.ml"
+
 (* command line arguments *)
 let gstatus = let np = ref 3 in
 let nhump = ref 1 in
@@ -34,110 +36,40 @@ let ai = ref 0 in
 Arg.parse [("-p",Arg.Int (fun a -> np:=a), "Set the number of players.");
 ("-n",Arg.Int (fun a -> nhump:=a), "Set the number of human players.");
 ("-d",Arg.Int (fun a -> ai:=a), "Set the dificulty level.")]
-print_endline "A clone of the card game Sleuth(R). \nThe available options are:";
+print_endline "\027[32mA clone of the card game Sleuth(R).\027[39m\nThe available options are:";
 { turn=0; humplyrs= !nhump; nplyrs= !np; ai_lvl= !ai };;
 
-(* first: 173; +5 ; sec row: +111 *)
-
-let fill_sheet ?(chr='X') l s = 
-	let rec aux acc = function
-		| [] -> acc
-		| h::t -> 
-			let (x,y,z) = h in
-			let a = match x with
-			| "Pearl" -> 0
-			| "Opal" -> 3
-			| "Diamond" -> 6
-			| _ -> 0
-			in let b = match y with
-			| "Solitaire" -> 0
-			| "Pairs" -> 1
-			| "Cluster" -> 2
-			| _ -> 0
-			in let c = match z with
-			| "Red" -> 0
-			| "Blue" -> 1
-			| "Green" -> 2
-			| "Yellow" -> 3
-			| _ -> 0
-		in Bytes.set (List.nth acc c) (a+b) chr;
-		aux acc t 
-	in aux s l;;
-
-(* Players Hands TODO: make more efficinet use reverse *)
-(*  List.map (fun hand -> fill_sheet hand (List.map Bytes.copy sheet)) hands *)
-let get_plyrs hand sheet = 
-	let rec aux acc = function
-		| [] -> acc
-		| h::t -> aux (acc@[(h, (fill_sheet h (List.map Bytes.copy sheet)) )]) t
-	in aux [] hand;;
-
-(* Search Cards Use *)
-
-let rec get_int2 ?(cplyr= -1) str nmax = 
-if (String.length str) = 0 then 0 else
-   let is_int = String.map (fun a -> if (a>='0' && a<='9') then 'T' else 'F') str in
-   if String.contains is_int 'F' then (print_string "Enter number again: " ; 
-      get_int2 (read_line ()) nmax ~cplyr: cplyr)
-   else if ((int_of_string str)<= nmax)&&((int_of_string str)!= cplyr) then (int_of_string str )
-else (Printf.printf "Enter number again (0-%d): " nmax; get_int2 (read_line ()) nmax ~cplyr: cplyr);;
-
-let choose_elem = function
-  | "Diamond" | "Pearl" | "Opal" -> ["One-Element"]@typ@color
-  | "Solitaire" | "Pairs" | "Cluster" -> ["One-Element"]@gem@color
-  | "Red" | "Blue" | "Green" | "Yellow" -> ["One-Element"]@gem@typ
-  | "Free-Choice" -> gem@typ@color
-  | _ -> [];;
-
-let rec fnd_scrd ?(ain= -2) tup =
-	let (x, y) = tup in
-	match tup with
-	  | (("Diamond" | "Pearl" | "Opal") , ("Solitaire" | "Pairs" | "Cluster")) -> (x, y, "")
-	  | (("Diamond" | "Pearl" | "Opal") , ("Red" | "Blue" | "Green" | "Yellow")) -> (x, "", y)
-	  | (("Solitaire" | "Pairs" | "Cluster") , ("Red" | "Blue" | "Green" | "Yellow")) -> ("", x, y)
-	  | ("One-Element" , ("Diamond" | "Pearl" | "Opal") ) -> (y, "", "")
-	  | ("One-Element" , ("Solitaire" | "Pairs" | "Cluster")) -> ("", y, "")
-	  | ("One-Element" , ("Red" | "Blue" | "Green" | "Yellow")) -> ("", "", y)
-	  | ("Free-Choice", _) -> let tmpl = choose_elem y in
-	  let ntmpl = List.length tmpl in (
-	  if ain < -1 then
-		(List.iter2 (fun a b -> Printf.printf "%d. %s\n" (b+1) a) tmpl (int_list ntmpl) ;
-		print_string "\nChoose a type: " ; let rl = get_int2 (read_line ()) ntmpl in
-		fnd_scrd (List.nth tmpl (rl-1), y) )
-	  else fnd_scrd (List.nth tmpl (Random.int ntmpl), y) )
-	  | _ -> fnd_scrd (y, x)
-
-let chk_gems plyr srch = 
-  let g = plyr.gems in
-  match srch with  (* For Testing *)
-  | (x, "", "") -> let n = List.length (List.filter (fun a -> let (i,_,_)=a in (i=x) ) g) in
-    Printf.printf "There are %d %s cards\n" n x;
-    plyr.info <- (plyr.info)@[( (string_of_int n)^" "^x^" cards." )];
-    print_newline () ; []
-  | ("", y, "") -> let n = List.length (List.filter (fun a -> let (_,j,_)=a in (j=y) ) g) in
-    Printf.printf "There are %d %s cards\n" n y;
-    plyr.info <- (plyr.info)@[( (string_of_int n)^" "^y^" cards.")];
-    print_newline () ; []
-  | ("", "", z) -> let n = List.length (List.filter (fun a -> let (_,_,k)=a in (k=z) ) g) in
-    Printf.printf "There are %d %s cards\n" n z;
-    plyr.info <- (plyr.info)@[( (string_of_int n)^" "^z^" cards." )];
-    print_newline () ; []
-  | (x, y, "") -> let tmp = List.filter (fun a -> let (i,j,_)=a in (i=x && j=y) ) g in
-    let tmpstr = ((string_of_int (List.length tmp))^" ["^x^"] ["^y^"] cards." ) in 
-    print_endline tmpstr ;
-    plyr.info <-( (plyr.info)@[tmpstr] );
-    tmp
-  | (x, "", z) -> let tmp = List.filter (fun a -> let (i,_,k)=a in (i=x && k=z) ) g in
-    let tmpstr = ((string_of_int (List.length tmp))^" ["^z^"] ["^x^"] cards." ) in
-    print_endline tmpstr ;
-    plyr.info <-( (plyr.info)@[tmpstr] );
-    tmp
-  | ("", y, z) -> let tmp = List.filter (fun a -> let (_,j,k)=a in (j=y && k=z) ) g in
-    let tmpstr = ((string_of_int (List.length tmp))^" ["^z^"] ["^y^"] cards.") in
-    print_endline tmpstr ;
-    plyr.info <-( (plyr.info)@[tmpstr] );
-    tmp
-  | _ -> [];;
+let chk_gems plyr srch =
+	let g = plyr.gems in
+	match srch with  (* For Testing *)
+	| (x, "", "") -> let n = List.length (List.filter (fun a -> let (i,_,_)=a in (i=x) ) g) in
+		Printf.printf "There are %d %s cards\n" n x;
+		plyr.info <- (plyr.info)@[( (string_of_int n)^" "^x^" cards." )];
+		print_newline () ; []
+	| ("", y, "") -> let n = List.length (List.filter (fun a -> let (_,j,_)=a in (j=y) ) g) in
+		Printf.printf "There are %d %s cards\n" n y;
+		plyr.info <- (plyr.info)@[( (string_of_int n)^" "^y^" cards.")];
+		print_newline () ; []
+	| ("", "", z) -> let n = List.length (List.filter (fun a -> let (_,_,k)=a in (k=z) ) g) in
+		Printf.printf "There are %d %s cards\n" n z;
+		plyr.info <- (plyr.info)@[( (string_of_int n)^" "^z^" cards." )];
+		print_newline () ; []
+	| (x, y, "") -> let tmp = List.filter (fun a -> let (i,j,_)=a in (i=x && j=y) ) g in
+		let tmpstr = ((string_of_int (List.length tmp))^" ["^x^"] ["^y^"] cards." ) in 
+		print_endline tmpstr ;
+		plyr.info <-( (plyr.info)@[tmpstr] );
+		tmp
+	| (x, "", z) -> let tmp = List.filter (fun a -> let (i,_,k)=a in (i=x && k=z) ) g in
+		let tmpstr = ((string_of_int (List.length tmp))^" ["^z^"] ["^x^"] cards." ) in
+		print_endline tmpstr ;
+		plyr.info <-( (plyr.info)@[tmpstr] );
+		tmp
+	| ("", y, z) -> let tmp = List.filter (fun a -> let (_,j,k)=a in (j=y && k=z) ) g in
+		let tmpstr = ((string_of_int (List.length tmp))^" ["^z^"] ["^y^"] cards.") in
+		print_endline tmpstr ;
+		plyr.info <-( (plyr.info)@[tmpstr] );
+		tmp
+	| _ -> [];;
 
 (* Try Guessing *)
 let get_guess () =
@@ -167,7 +99,6 @@ let (pscards, tmp_deck) =
 let sdeck = make_sdeck gem typ color in
 permute_deck sdeck (4*gstatus.nplyrs);;
 
-
 let draw_deck = let (a,_) = permute_deck tmp_deck (List.length tmp_deck) in
 {cards= a};;
 let used_deck = {cards=[]};;
@@ -179,18 +110,11 @@ let (missing_gem, rdeck) =
 
 let plyrs = 
   let (plyrs_hands, disc) = (deal_gems rdeck gstatus.nplyrs) in
-  let info = ["         "; "         "; "         "; "         "] in
+  let info = sht_init() in
   let dsheet = fill_sheet disc info in
-  let gplyrs = get_plyrs plyrs_hands dsheet in
+  let gplyrs = get_plyrs_sheets plyrs_hands dsheet in
   let tmp_hand = add_scards gplyrs pscards in
   init_plyrs tmp_hand;;
-
-(* Print a users sheet *)
-let prnt_sht s =
-  let lnstr = "\n-----------------------------------------------------" in
-  print_string ("Information Sheet:\n\n       |    Pearl     |     Opals    |   Diamonds   |\n       | 1  |  2 |  3 | 1  |  2 |  3 | 1  |  2 |  3 |"^lnstr);
-  List.iter2 (fun a b -> Printf.printf "\n%7s|" a; 
-  (String.iter (Printf.printf "  %c |" ) b); print_string lnstr) color s;;
 
 (* Get new search card remove old *)
 (* TODO: Move to search_deck.ml after moving the draw_deck there
@@ -205,7 +129,7 @@ let new_scrd nc np =
 (* Start Game Mech *)
 let cmnd = function
 | "A" | "a" -> let p = (List.nth plyrs (gstatus.turn mod gstatus.nplyrs)) in
-  prnt_sht p.sheet; print_endline "\nSearch Cards:\n--------------";
+  prnt_sheet p.sheet color; print_endline "\nSearch Cards:\n--------------";
   List.iter (fun a -> let (x,y) = a in
   Printf.printf "[%s],[%s]\n" x y) p.scards ;
   print_string "\n[Press Enter to Continue]" ; read_line ();
@@ -276,7 +200,6 @@ let ai_0 cplyr =
   new_scrd card cplyr ;
   gstatus.turn <- gstatus.turn + 1;;
 
-
 (* Game Loop *)
 let rec main_loop () =
   (if (gstatus.turn mod gstatus.nplyrs) < gstatus.humplyrs then
@@ -288,15 +211,9 @@ try main_loop ()
 with Quit () -> print_endline "The game has terminated!"
 | Failure "int_of_string" -> main_loop ();;
 
-
 (* Start Game *)
 try main_loop () with Failure "int_of_string" -> main_loop ()
 | Quit () -> print_endline "The game has terminated!";;
-
-
-
-
-
 
 (* --------- TODO -----------
 [Make it so that player can't target himself]

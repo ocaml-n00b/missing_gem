@@ -46,3 +46,11 @@ let int_list b =
 	let rec aux acc a = 
 		if a<b then aux (acc@[a]) (a+1) else acc
 	in aux [] 0;;
+
+let rec get_int2 ?(cplyr= -1) str nmax = 
+	if (String.length str) = 0 then 0 else
+	   let is_int = String.map (fun a -> if (a>='0' && a<='9') then 'T' else 'F') str in
+	   if String.contains is_int 'F' then (print_string "Enter number again: " ; 
+		  get_int2 (read_line ()) nmax ~cplyr: cplyr)
+	   else if ((int_of_string str)<= nmax)&&((int_of_string str)!= cplyr) then (int_of_string str )
+	else (Printf.printf "Enter number again (0-%d): " nmax; get_int2 (read_line ()) nmax ~cplyr: cplyr);;
