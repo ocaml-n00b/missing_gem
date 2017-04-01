@@ -1,3 +1,7 @@
+#!/usr/bin/ocaml
+
+#use "./src/list_fun.ml"
+#use "./src/search_deck.ml"
 
 (* General Bindings *)
 let gem = ["Diamond" ; "Pearl" ; "Opal"]
@@ -6,23 +10,24 @@ let color = ["Red" ; "Blue" ; "Green" ; "Yellow"]
 
 (* Game types & Exceptions *)
 type player = {
-gems : (string * string * string) list; 
-mutable scards : (string * string) list ;
-mutable sheet : string list;
-mutable info : string list};;
+	gems : (string * string * string) list; 
+	mutable scards : (string * string) list ;
+	mutable sheet : string list;
+	mutable info : string list}
 
-type deck = {mutable cards : (string * string) list};;
-type mcard = {mutable card : (string * string * string)};;
+type deck = {mutable cards : (string * string) list}
+type mcard = {mutable card : (string * string * string)}
 
 type status = {
-  mutable turn : int;
-  humplyrs : int;
-  nplyrs : int;
-  ai_lvl : int };;
+	mutable turn : int;
+	humplyrs : int;
+	nplyrs : int;
+	ai_lvl : int }
 
 exception Quit of unit;;
 Random.self_init ();;
 
+(* command line arguments *)
 let gstatus = let np = ref 3 in
 let nhump = ref 1 in
 let ai = ref 0 in
@@ -32,107 +37,49 @@ Arg.parse [("-p",Arg.Int (fun a -> np:=a), "Set the number of players.");
 print_endline "A clone of the card game Sleuth(R). \nThe available options are:";
 { turn=0; humplyrs= !nhump; nplyrs= !np; ai_lvl= !ai };;
 
-let rec unite a b = function
-  | [] -> []
-  | h::t -> [(a, b, h)] @ unite a b t;;
-
-let comb l1 l2 l3 = let rec aux n1 acc = function
-  | [] -> acc
-  | h::t as l-> if n1=0 then aux ((List.length l1)-1) (acc@(unite (List.nth l1 0) h l3)) t
-  else aux (n1-1) (acc@(unite (List.nth l1 n1) h l3)) l
-in aux ((List.length l1)-1) [] l2;;
-
-
-(* Remove nth item from a list *)
-let rmv_missing l n = let rec aux m acc = function
-  | [] -> []
-  | h::t -> if m=n then (List.rev acc)@t else aux (m+1) (h :: acc) t
-in aux 0 [] l;;
-
-
-(* Return: random permutation of n values of a list and its remainder (non-random) *)
-let deal_plyr tmpdeck n = let rec aux n acc = function
-  | [] -> (acc,[])
-  | _::_ as l -> if n>0 then 
-   let rnd = Random.int (List.length l) in
-   let nlist = rmv_missing l rnd in
-   aux (n-1) ((List.nth l rnd) :: acc) nlist 
-  else  ( acc , l)
-in aux n [] tmpdeck;;
- 
-let deal_gems deck np = let rec aux m acc l =
- if m>0 then let (x,y) = deal_plyr l (35/np) in
-  aux (m-1) (acc@[x]) y
- else (acc, l)
-in aux np [] deck;;
-
-
 (* first: 173; +5 ; sec row: +111 *)
 
-let fill_sheet ?(chr='X') l s = let rec aux acc = function
-  | [] -> acc
-  | h::t -> let (x,y,z) = h in
-    let a = match x with
-      | "Pearl" -> 0
-      | "Opal" -> 3
-      | "Diamond" -> 6
-      | _ -> 0
-    in let b = match y with
-      | "Solitaire" -> 0
-      | "Pairs" -> 1
-      | "Cluster" -> 2
-      | _ -> 0
-    in let c = match z with
-      | "Red" -> 0
-      | "Blue" -> 1
-      | "Green" -> 2
-      | "Yellow" -> 3
-      | _ -> 0
-  in String.set (List.nth acc c) (a+b) chr;
-aux acc t in aux s l;;
+let fill_sheet ?(chr='X') l s = 
+	let rec aux acc = function
+		| [] -> acc
+		| h::t -> 
+			let (x,y,z) = h in
+			let a = match x with
+			| "Pearl" -> 0
+			| "Opal" -> 3
+			| "Diamond" -> 6
+			| _ -> 0
+			in let b = match y with
+			| "Solitaire" -> 0
+			| "Pairs" -> 1
+			| "Cluster" -> 2
+			| _ -> 0
+			in let c = match z with
+			| "Red" -> 0
+			| "Blue" -> 1
+			| "Green" -> 2
+			| "Yellow" -> 3
+			| _ -> 0
+		in Bytes.set (List.nth acc c) (a+b) chr;
+		aux acc t 
+	in aux s l;;
 
-(* Players Hands *)
-let get_plyrs hand sheet = let rec aux acc = function
-  | [] -> acc
-  | h::t -> aux (acc@[(h, (fill_sheet h (List.map String.copy sheet)) )]) t
-in aux [] hand;;
-
-
-(* Search Deck *)
-let join a l = let rec aux = function
-  | [] -> []
-  | h::t -> [(a,h)]@aux t
-in aux l;;
-
-let join2 l1 l2 = let rec aux = function
-  | [] -> []
-  | h::t -> (join h l1)@aux t
-in aux l2;;
-
-let make_sdeck l1 l2 l3 = 
-  let sngls = l1@l2@l3 in
-  (join "One-Element" sngls)@(join2 l2 l1)@(join2 l3 l1)@(join2 l3 l2)@(join "Free-Choice" sngls)@[("Free-Choice", "Free-Choice")]  ;;
-
-let add_scards plyrl sdck = let rec aux acc l = function
-  | [] -> acc
-  | h::t -> let (x,z) = h in
-    let (y, tmp) = deal_plyr l 4 in
-    aux (acc@[(x, y, z)]) tmp t
-in aux [] sdck plyrl;;
-
-(* Get a list of int from 0 to b *)
-let int_list b = let rec aux acc a = 
-  if a<b then aux (acc@[a]) (a+1) else acc
-in aux [] 0;;
+(* Players Hands TODO: make more efficinet use reverse *)
+(*  List.map (fun hand -> fill_sheet hand (List.map Bytes.copy sheet)) hands *)
+let get_plyrs hand sheet = 
+	let rec aux acc = function
+		| [] -> acc
+		| h::t -> aux (acc@[(h, (fill_sheet h (List.map Bytes.copy sheet)) )]) t
+	in aux [] hand;;
 
 (* Search Cards Use *)
 
 let rec get_int2 ?(cplyr= -1) str nmax = 
 if (String.length str) = 0 then 0 else
-  let is_int = String.map (fun a -> if (a>='0' && a<='9') then 'T' else 'F') str in
-  if String.contains is_int 'F' then (print_string "Enter number again: " ; 
-    get_int2 (read_line ()) nmax ~cplyr: cplyr)
-  else if ((int_of_string str)<= nmax)&&((int_of_string str)!= cplyr) then (int_of_string str )
+   let is_int = String.map (fun a -> if (a>='0' && a<='9') then 'T' else 'F') str in
+   if String.contains is_int 'F' then (print_string "Enter number again: " ; 
+      get_int2 (read_line ()) nmax ~cplyr: cplyr)
+   else if ((int_of_string str)<= nmax)&&((int_of_string str)!= cplyr) then (int_of_string str )
 else (Printf.printf "Enter number again (0-%d): " nmax; get_int2 (read_line ()) nmax ~cplyr: cplyr);;
 
 let choose_elem = function
@@ -143,22 +90,22 @@ let choose_elem = function
   | _ -> [];;
 
 let rec fnd_scrd ?(ain= -2) tup =
-let (x, y) = tup in
-match tup with
-  | (("Diamond" | "Pearl" | "Opal") , ("Solitaire" | "Pairs" | "Cluster")) -> (x, y, "")
-  | (("Diamond" | "Pearl" | "Opal") , ("Red" | "Blue" | "Green" | "Yellow")) -> (x, "", y)
-  | (("Solitaire" | "Pairs" | "Cluster") , ("Red" | "Blue" | "Green" | "Yellow")) -> ("", x, y)
-  | ("One-Element" , ("Diamond" | "Pearl" | "Opal") ) -> (y, "", "")
-  | ("One-Element" , ("Solitaire" | "Pairs" | "Cluster")) -> ("", y, "")
-  | ("One-Element" , ("Red" | "Blue" | "Green" | "Yellow")) -> ("", "", y)
-  | ("Free-Choice", _) -> let tmpl = choose_elem y in
-  let ntmpl = List.length tmpl in (
-  if ain < -1 then
-    (List.iter2 (fun a b -> Printf.printf "%d. %s\n" (b+1) a) tmpl (int_list ntmpl) ;
-    print_string "\nChoose a type: " ; let rl = get_int2 (read_line ()) ntmpl in
-    fnd_scrd (List.nth tmpl (rl-1), y) )
-  else fnd_scrd (List.nth tmpl (Random.int ntmpl), y) )
-  | _ -> fnd_scrd (y, x);;
+	let (x, y) = tup in
+	match tup with
+	  | (("Diamond" | "Pearl" | "Opal") , ("Solitaire" | "Pairs" | "Cluster")) -> (x, y, "")
+	  | (("Diamond" | "Pearl" | "Opal") , ("Red" | "Blue" | "Green" | "Yellow")) -> (x, "", y)
+	  | (("Solitaire" | "Pairs" | "Cluster") , ("Red" | "Blue" | "Green" | "Yellow")) -> ("", x, y)
+	  | ("One-Element" , ("Diamond" | "Pearl" | "Opal") ) -> (y, "", "")
+	  | ("One-Element" , ("Solitaire" | "Pairs" | "Cluster")) -> ("", y, "")
+	  | ("One-Element" , ("Red" | "Blue" | "Green" | "Yellow")) -> ("", "", y)
+	  | ("Free-Choice", _) -> let tmpl = choose_elem y in
+	  let ntmpl = List.length tmpl in (
+	  if ain < -1 then
+		(List.iter2 (fun a b -> Printf.printf "%d. %s\n" (b+1) a) tmpl (int_list ntmpl) ;
+		print_string "\nChoose a type: " ; let rl = get_int2 (read_line ()) ntmpl in
+		fnd_scrd (List.nth tmpl (rl-1), y) )
+	  else fnd_scrd (List.nth tmpl (Random.int ntmpl), y) )
+	  | _ -> fnd_scrd (y, x)
 
 let chk_gems plyr srch = 
   let g = plyr.gems in
@@ -216,11 +163,12 @@ in aux [] plyrl;;
 
 (* Temp bind used_deck for passing to next phase : let draw_deck, used_deck = *)
 
-let (pscards, tmp_deck) = let sdeck = make_sdeck gem typ color in
-deal_plyr sdeck (4*gstatus.nplyrs);;
+let (pscards, tmp_deck) = 
+let sdeck = make_sdeck gem typ color in
+permute_deck sdeck (4*gstatus.nplyrs);;
 
 
-let draw_deck = let (a,_) = deal_plyr tmp_deck (List.length tmp_deck) in
+let draw_deck = let (a,_) = permute_deck tmp_deck (List.length tmp_deck) in
 {cards= a};;
 let used_deck = {cards=[]};;
 
@@ -230,8 +178,7 @@ let (missing_gem, rdeck) =
   (List.nth gdeck nrnd, rmv_missing gdeck nrnd) ;;
 
 let plyrs = 
-  let plyrs_hand = (deal_gems rdeck gstatus.nplyrs) in
-  let (plyrs_hands, disc) = plyrs_hand in
+  let (plyrs_hands, disc) = (deal_gems rdeck gstatus.nplyrs) in
   let info = ["         "; "         "; "         "; "         "] in
   let dsheet = fill_sheet disc info in
   let gplyrs = get_plyrs plyrs_hands dsheet in
@@ -246,6 +193,8 @@ let prnt_sht s =
   (String.iter (Printf.printf "  %c |" ) b); print_string lnstr) color s;;
 
 (* Get new search card remove old *)
+(* TODO: Move to search_deck.ml after moving the draw_deck there
+*)
 let new_scrd nc np = 
   let p = List.nth plyrs np in
   let newy = [List.hd draw_deck.cards]@(rmv_missing p.scards nc) in
@@ -306,7 +255,7 @@ let cmnd = function
 | "F" | "f" -> let guess = get_guess () in
   let (x, y, z) = missing_gem in
   if guess = missing_gem then print_string "You Won! The answer IS "
-  else print_string "You Lost! The wright answer was ";
+  else print_string "You Lost! The correct answer was ";
   Printf.printf "([%s],[%s],[%s])!\n\n" x y z;
   flush stdout ;
   raise (Quit ())
