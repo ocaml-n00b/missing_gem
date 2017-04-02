@@ -1,33 +1,14 @@
 #!/usr/bin/ocaml
 
-(* General Bindings *)
-let gem = ["Diamond" ; "Pearl" ; "Opal"]
-let typ = ["Solitaire" ; "Pairs" ; "Cluster"]
-let color = ["Red" ; "Blue" ; "Green" ; "Yellow"]
-
-(* Game types & Exceptions *)
-type player = {
-	gems : (string * string * string) list; 
-	mutable scards : (string * string) list ;
-	mutable sheet : string list;
-	mutable info : string list}
-
-type deck = {mutable cards : (string * string) list}
-type mcard = {mutable card : (string * string * string)}
-
-type status = {
-	mutable turn : int;
-	humplyrs : int;
-	nplyrs : int;
-	ai_lvl : int }
-
-exception Quit of unit;;
+#use "./src/common_def.ml";;
 Random.self_init ();;
 
 (* load other libraries *)
 #use "./src/list_fun.ml"
 #use "./src/search_deck.ml"
 #use "./src/sheet.ml"
+
+#use "./src/player.ml"
 
 (* command line arguments *)
 let gstatus = let np = ref 3 in
@@ -39,37 +20,6 @@ Arg.parse [("-p",Arg.Int (fun a -> np:=a), "Set the number of players.");
 print_endline "\027[32mA clone of the card game Sleuth(R).\027[39m\nThe available options are:";
 { turn=0; humplyrs= !nhump; nplyrs= !np; ai_lvl= !ai };;
 
-let chk_gems plyr srch =
-	let g = plyr.gems in
-	match srch with  (* For Testing *)
-	| (x, "", "") -> let n = List.length (List.filter (fun a -> let (i,_,_)=a in (i=x) ) g) in
-		Printf.printf "There are %d %s cards\n" n x;
-		plyr.info <- (plyr.info)@[( (string_of_int n)^" "^x^" cards." )];
-		print_newline () ; []
-	| ("", y, "") -> let n = List.length (List.filter (fun a -> let (_,j,_)=a in (j=y) ) g) in
-		Printf.printf "There are %d %s cards\n" n y;
-		plyr.info <- (plyr.info)@[( (string_of_int n)^" "^y^" cards.")];
-		print_newline () ; []
-	| ("", "", z) -> let n = List.length (List.filter (fun a -> let (_,_,k)=a in (k=z) ) g) in
-		Printf.printf "There are %d %s cards\n" n z;
-		plyr.info <- (plyr.info)@[( (string_of_int n)^" "^z^" cards." )];
-		print_newline () ; []
-	| (x, y, "") -> let tmp = List.filter (fun a -> let (i,j,_)=a in (i=x && j=y) ) g in
-		let tmpstr = ((string_of_int (List.length tmp))^" ["^x^"] ["^y^"] cards." ) in 
-		print_endline tmpstr ;
-		plyr.info <-( (plyr.info)@[tmpstr] );
-		tmp
-	| (x, "", z) -> let tmp = List.filter (fun a -> let (i,_,k)=a in (i=x && k=z) ) g in
-		let tmpstr = ((string_of_int (List.length tmp))^" ["^z^"] ["^x^"] cards." ) in
-		print_endline tmpstr ;
-		plyr.info <-( (plyr.info)@[tmpstr] );
-		tmp
-	| ("", y, z) -> let tmp = List.filter (fun a -> let (_,j,k)=a in (j=y && k=z) ) g in
-		let tmpstr = ((string_of_int (List.length tmp))^" ["^z^"] ["^y^"] cards.") in
-		print_endline tmpstr ;
-		plyr.info <-( (plyr.info)@[tmpstr] );
-		tmp
-	| _ -> [];;
 
 (* Try Guessing *)
 let get_guess () =
@@ -84,17 +34,6 @@ let get_guess () =
   let z = List.nth color ((get_int2 (read_line ()) 4) -1) in
   (x,y,z);;
 
-(* Get Players Hands*)
-let init_plyrs plyrl = let rec aux acc = function
-  | [] -> acc
-  | h::t -> let (x,y,z) = h in
-    aux ([{gems=x; scards=y; sheet=z; info=[]}]@acc) t
-in aux [] plyrl;;
-
-(* ---------------- More Bindings ---------------- *)
-
-(* Temp bind used_deck for passing to next phase : let draw_deck, used_deck = *)
-
 let (pscards, tmp_deck) = 
 let sdeck = make_sdeck gem typ color in
 permute_deck sdeck (4*gstatus.nplyrs);;
@@ -104,88 +43,99 @@ let draw_deck = let (a,_) = permute_deck tmp_deck (List.length tmp_deck) in
 let used_deck = {cards=[]};;
 
 let (missing_gem, rdeck) =
-  let gdeck = comb gem typ color in
-  let nrnd = Random.int 36 in
-  (List.nth gdeck nrnd, rmv_missing gdeck nrnd) ;;
+	let gdeck = comb gem typ color in
+	let nrnd = Random.int 36 in
+	(List.nth gdeck nrnd, rmv_missing gdeck nrnd) ;;
 
 let plyrs = 
-  let (plyrs_hands, disc) = (deal_gems rdeck gstatus.nplyrs) in
-  let info = sht_init() in
-  let dsheet = fill_sheet disc info in
-  let gplyrs = get_plyrs_sheets plyrs_hands dsheet in
-  let tmp_hand = add_scards gplyrs pscards in
-  init_plyrs tmp_hand;;
+	let (plyrs_hands, disc) = (deal_gems rdeck gstatus.nplyrs) in
+	let info = sht_init() in
+	let dsheet = fill_sheet disc info in
+	let gplyrs = get_plyrs_sheets plyrs_hands dsheet in
+	let tmp_hand = add_scards gplyrs pscards in
+	init_plyrs tmp_hand;;
 
 (* Get new search card remove old *)
 (* TODO: Move to search_deck.ml after moving the draw_deck there
 *)
 let new_scrd nc np = 
-  let p = List.nth plyrs np in
-  let newy = [List.hd draw_deck.cards]@(rmv_missing p.scards nc) in
-  draw_deck.cards <- List.tl draw_deck.cards ;
-  used_deck.cards <- [(List.nth p.scards nc)]@used_deck.cards ;
-  p.scards <- newy ;;
+	let p = List.nth plyrs np in
+	let newy = [List.hd draw_deck.cards]@(rmv_missing p.scards nc) in
+	draw_deck.cards <- List.tl draw_deck.cards ;
+	used_deck.cards <- [(List.nth p.scards nc)]@used_deck.cards ;
+	p.scards <- newy ;;
+
+let print_hand () = 
+	let p = (List.nth plyrs (gstatus.turn mod gstatus.nplyrs)) in
+	prnt_sheet p.sheet color; print_endline "\nSearch Cards:\n--------------";
+	List.iter (fun a -> let (x,y) = a in
+	Printf.printf "[%s],[%s]\n" x y) p.scards ;
+	print_string "\n[Press Enter to Continue]" ; let _ = read_line () in
+	()
+
+let print_table_search_cards () = 
+	Printf.printf "All search card on the table:";
+	List.iter2 (fun a n -> let p = a in
+	Printf.printf "\nPlayer %d\n" (n+1);
+	List.iter (fun b -> let (x, y) = b in
+	Printf.printf "[%s],[%s]\n" x y) p.scards) plyrs (int_list gstatus.nplyrs) ;
+	print_string "\n[Press Enter to Continue]" ; let _ = read_line () in
+	()
+	
+let play_search_card () = 
+	let cplyr = (gstatus.turn mod gstatus.nplyrs) in
+	let t = (List.nth plyrs cplyr).scards in
+	Printf.printf "\nSearch Cards in hand:\n" ;
+	List.iter2 (fun a b -> let (x,y) = a in
+	Printf.printf "%d: [%s],[%s]\n" (b+1) x y) t (int_list 4);
+	Printf.printf "Choose a card: "; 
+	let card = ((get_int2 (read_line ()) 4) -1) in
+	print_string "Choose player: " ; 
+	let tup = List.nth t card in
+	let plyr = ((get_int2 (read_line ()) gstatus.nplyrs ~cplyr: (cplyr+1)) -1) in
+	let this = chk_gems (List.nth plyrs plyr) (fnd_scrd tup) in
+	let nsheet = (List.nth plyrs cplyr).sheet in
+	(List.nth plyrs cplyr).sheet <- fill_sheet this nsheet ~chr:(char_of_int (plyr+49));
+	new_scrd card (gstatus.turn mod gstatus.nplyrs) ;
+	print_string "\n[Press Enter to Continue]" ; let _ = read_line () in
+	gstatus.turn <- gstatus.turn + 1
+
+let change_search_cards () =
+	new_scrd 3 (gstatus.turn mod gstatus.nplyrs); 
+	new_scrd 3 (gstatus.turn mod gstatus.nplyrs); 
+	new_scrd 3 (gstatus.turn mod gstatus.nplyrs); 
+	new_scrd 3 (gstatus.turn mod gstatus.nplyrs);
+	print_endline "Your search cards have been changed!";
+	print_string "\n[Press Enter to Continue]" ; let _ = read_line () in
+	gstatus.turn <- gstatus.turn + 1
+
+let view_played_cards () = 
+	Printf.printf "All search card on the table:";
+	List.iter2 (fun a n -> let p = a in
+	Printf.printf "\nPlayer %d\n" (n+1);
+	List.iter (Printf.printf "%s\n") p.info) plyrs (int_list gstatus.nplyrs) ;
+	print_string "\n[Press Enter to Continue]" ; let _ = read_line () in
+	()
+
+let guess_missing_gem () = 
+	let guess = get_guess () in
+	let (x, y, z) = missing_gem in
+	if guess = missing_gem then print_string "You Won! The answer IS "
+	else print_string "You Lost! The correct answer was ";
+	Printf.printf "([%s],[%s],[%s])!\n\n" x y z;
+	flush stdout ;
+	raise (Quit ())
 
 (* Start Game Mech *)
 let cmnd = function
-| "A" | "a" -> let p = (List.nth plyrs (gstatus.turn mod gstatus.nplyrs)) in
-  prnt_sheet p.sheet color; print_endline "\nSearch Cards:\n--------------";
-  List.iter (fun a -> let (x,y) = a in
-  Printf.printf "[%s],[%s]\n" x y) p.scards ;
-  print_string "\n[Press Enter to Continue]" ; read_line ();
-  ()
-
-| "B" | "b" -> Printf.printf "All search card on the table:";
-  List.iter2 (fun a n -> let p = a in
-  Printf.printf "\nPlayer %d\n" (n+1);
-  List.iter (fun b -> let (x, y) = b in
-  Printf.printf "[%s],[%s]\n" x y) p.scards) plyrs (int_list gstatus.nplyrs) ;
-  print_string "\n[Press Enter to Continue]" ; read_line () ;
-  ()
-
-| "C" | "c" ->  let cplyr = (gstatus.turn mod gstatus.nplyrs) in
-  let t = (List.nth plyrs cplyr).scards in
-  Printf.printf "\nSearch Cards in hand:\n" ;
-  List.iter2 (fun a b -> let (x,y) = a in
-  Printf.printf "%d: [%s],[%s]\n" (b+1) x y) t (int_list 4);
-  Printf.printf "Choose a card: "; 
-  let card = ((get_int2 (read_line ()) 4) -1) in
-  print_string "Choose player: " ; 
-  let tup = List.nth t card in
-  let plyr = ((get_int2 (read_line ()) gstatus.nplyrs ~cplyr: (cplyr+1)) -1) in
-  let this = chk_gems (List.nth plyrs plyr) (fnd_scrd tup) in
-  let nsheet = (List.nth plyrs cplyr).sheet in
-  (List.nth plyrs cplyr).sheet <- fill_sheet this nsheet ~chr:(char_of_int (plyr+49));
-  new_scrd card (gstatus.turn mod gstatus.nplyrs) ;
-  print_string "\n[Press Enter to Continue]" ; read_line () ;
-  gstatus.turn <- gstatus.turn + 1
-
-| "D" | "d" -> 
-  new_scrd 3 (gstatus.turn mod gstatus.nplyrs); 
-  new_scrd 3 (gstatus.turn mod gstatus.nplyrs); 
-  new_scrd 3 (gstatus.turn mod gstatus.nplyrs); 
-  new_scrd 3 (gstatus.turn mod gstatus.nplyrs);
-  print_endline "Your search cards have been changed!";
-  print_string "\n[Press Enter to Continue]" ; read_line () ;
-  gstatus.turn <- gstatus.turn + 1
-
-| "E" | "e" -> Printf.printf "All search card on the table:";
-  List.iter2 (fun a n -> let p = a in
-  Printf.printf "\nPlayer %d\n" (n+1);
-  List.iter (Printf.printf "%s\n") p.info) plyrs (int_list gstatus.nplyrs) ;
-  print_string "\n[Press Enter to Continue]" ; read_line () ;
-  ()
-
-| "F" | "f" -> let guess = get_guess () in
-  let (x, y, z) = missing_gem in
-  if guess = missing_gem then print_string "You Won! The answer IS "
-  else print_string "You Lost! The correct answer was ";
-  Printf.printf "([%s],[%s],[%s])!\n\n" x y z;
-  flush stdout ;
-  raise (Quit ())
-
-| "quit" | "exit" | "q" -> raise (Quit ())
-| _ -> ();;
+	| "A" | "a" -> print_hand ()
+	| "B" | "b" -> print_table_search_cards ()
+	| "C" | "c" -> play_search_card ()
+	| "D" | "d" -> change_search_cards ()
+	| "E" | "e" -> view_played_cards ()
+	| "F" | "f" -> guess_missing_gem ()
+	| "quit" | "exit" | "q" -> raise (Quit ())
+	| _ -> ();;
 
 (* Sorry excuse for a computer player (Randomly play search cards) *)
 let ai_0 cplyr = 
