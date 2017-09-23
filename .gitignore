@@ -8,6 +8,7 @@
 *.cmx
 *.cmxs
 *.cmxa
+src/missingGem
 
 # ocamlbuild working directory
 _build/
