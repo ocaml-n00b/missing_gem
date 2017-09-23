@@ -1,4 +1,4 @@
-
+open Common_def
 
 (* Create Deck *)
 let join a l = let rec aux = function
@@ -19,7 +19,7 @@ let add_scards plyrl sdck =
 	let rec aux acc l = function
 	  | [] -> acc
 	  | h::t -> let (x,z) = h in
-		let (y, tmp) = permute_deck l 4 in
+		let (y, tmp) = List_fun.permute_deck l 4 in
 		aux (acc@[(x, y, z)]) tmp t
 	in aux [] sdck plyrl;;
 
@@ -44,8 +44,8 @@ let rec fnd_scrd ?(ain= -2) tup =
 	  | ("Free-Choice", _) -> let tmpl = choose_elem y in
 		  let ntmpl = List.length tmpl in (
 		  if ain < -1 then
-			(List.iter2 (fun a b -> Printf.printf "%d. %s\n" (b+1) a) tmpl (int_list ntmpl) ;
-			print_string "\nChoose a type: " ; let rl = get_int2 (read_line ()) ntmpl in
+			(List.iter2 (fun a b -> Printf.printf "%d. %s\n" (b+1) a) tmpl (List_fun.int_list ntmpl) ;
+			print_string "\nChoose a type: " ; let rl = List_fun.get_int2 (read_line ()) ntmpl in
 			fnd_scrd (List.nth tmpl (rl-1), y) )
 		  else fnd_scrd (List.nth tmpl (Random.int ntmpl), y) )
 	  | _ -> fnd_scrd (y, x)

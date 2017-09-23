@@ -1,14 +1,19 @@
-#!/usr/bin/ocaml
+(* #!/usr/bin/ocaml 
 
-#use "./src/common_def.ml";;
-Random.self_init ();;
+#use "common_def.ml";;
+
 
 (* load other libraries *)
-#use "./src/list_fun.ml"
-#use "./src/search_deck.ml"
-#use "./src/sheet.ml"
+#use "list_fun.ml"
+#use "./search_deck.ml"
+#use "./sheet.ml"
 
-#use "./src/player.ml"
+#use "player.ml"
+*)
+
+
+Random.self_init ();;
+open Common_def
 
 (* command line arguments *)
 let gstatus = let np = ref 3 in
@@ -23,51 +28,51 @@ print_endline "\027[32mA clone of the card game Sleuth(R).\027[39m\nThe availabl
 
 (* Try Guessing *)
 let get_guess () =
-  List.iter2 (fun a -> Printf.printf "%d. %s\n" (a+1)) (int_list 3) gem;
+  List.iter2 (fun a -> Printf.printf "%d. %s\n" (a+1)) (List_fun.int_list 3) gem;
   print_string "Guess Gem: ";
-  let x = List.nth gem ((get_int2 (read_line ()) 3) -1) in
-  List.iter2 (fun a -> Printf.printf "%d. %s\n" (a+1)) (int_list 3) typ;
+  let x = List.nth gem ((List_fun.get_int2 (read_line ()) 3) -1) in
+  List.iter2 (fun a -> Printf.printf "%d. %s\n" (a+1)) (List_fun.int_list 3) typ;
   print_string "Guess Type: ";
-  let y = List.nth typ ((get_int2 (read_line ()) 3) -1) in
-  List.iter2 (fun a -> Printf.printf "%d. %s\n" (a+1)) (int_list 4) color;
+  let y = List.nth typ ((List_fun.get_int2 (read_line ()) 3) -1) in
+  List.iter2 (fun a -> Printf.printf "%d. %s\n" (a+1)) (List_fun.int_list 4) color;
   print_string "Guess Color: ";
-  let z = List.nth color ((get_int2 (read_line ()) 4) -1) in
+  let z = List.nth color ((List_fun.get_int2 (read_line ()) 4) -1) in
   (x,y,z);;
 
 let (pscards, tmp_deck) = 
-let sdeck = make_sdeck gem typ color in
-permute_deck sdeck (4*gstatus.nplyrs);;
+let sdeck = Search_deck.make_sdeck gem typ color in
+List_fun.permute_deck sdeck (4*gstatus.nplyrs);;
 
-let draw_deck = let (a,_) = permute_deck tmp_deck (List.length tmp_deck) in
+let draw_deck = let (a,_) = List_fun.permute_deck tmp_deck (List.length tmp_deck) in
 {cards= a};;
 let used_deck = {cards=[]};;
 
 let (missing_gem, rdeck) =
-	let gdeck = comb gem typ color in
+	let gdeck = List_fun.comb gem typ color in
 	let nrnd = Random.int 36 in
-	(List.nth gdeck nrnd, rmv_missing gdeck nrnd) ;;
+	(List.nth gdeck nrnd, List_fun.rmv_missing gdeck nrnd) ;;
 
 let plyrs = 
-	let (plyrs_hands, disc) = (deal_gems rdeck gstatus.nplyrs) in
-	let info = sht_init() in
-	let dsheet = fill_sheet disc info in
-	let gplyrs = get_plyrs_sheets plyrs_hands dsheet in
-	let tmp_hand = add_scards gplyrs pscards in
-	init_plyrs tmp_hand;;
+	let (plyrs_hands, disc) = (List_fun.deal_gems rdeck gstatus.nplyrs) in
+	let info = Sheet.sht_init() in
+	let dsheet = Sheet.fill_sheet disc info in
+	let gplyrs = Sheet.get_plyrs_sheets plyrs_hands dsheet in
+	let tmp_hand = Search_deck.add_scards gplyrs pscards in
+	Player.init_plyrs tmp_hand;;
 
 (* Get new search card remove old *)
 (* TODO: Move to search_deck.ml after moving the draw_deck there
 *)
 let new_scrd nc np = 
 	let p = List.nth plyrs np in
-	let newy = [List.hd draw_deck.cards]@(rmv_missing p.scards nc) in
+	let newy = [List.hd draw_deck.cards]@(List_fun.rmv_missing p.scards nc) in
 	draw_deck.cards <- List.tl draw_deck.cards ;
 	used_deck.cards <- [(List.nth p.scards nc)]@used_deck.cards ;
 	p.scards <- newy ;;
 
 let print_hand () = 
 	let p = (List.nth plyrs (gstatus.turn mod gstatus.nplyrs)) in
-	prnt_sheet p.sheet color; print_endline "\nSearch Cards:\n--------------";
+	Sheet.prnt_sheet p.sheet color; print_endline "\nSearch Cards:\n--------------";
 	List.iter (fun a -> let (x,y) = a in
 	Printf.printf "[%s],[%s]\n" x y) p.scards ;
 	print_string "\n[Press Enter to Continue]" ; let _ = read_line () in
@@ -78,7 +83,7 @@ let print_table_search_cards () =
 	List.iter2 (fun a n -> let p = a in
 	Printf.printf "\nPlayer %d\n" (n+1);
 	List.iter (fun b -> let (x, y) = b in
-	Printf.printf "[%s],[%s]\n" x y) p.scards) plyrs (int_list gstatus.nplyrs) ;
+	Printf.printf "[%s],[%s]\n" x y) p.scards) plyrs (List_fun.int_list gstatus.nplyrs) ;
 	print_string "\n[Press Enter to Continue]" ; let _ = read_line () in
 	()
 	
@@ -87,15 +92,15 @@ let play_search_card () =
 	let t = (List.nth plyrs cplyr).scards in
 	Printf.printf "\nSearch Cards in hand:\n" ;
 	List.iter2 (fun a b -> let (x,y) = a in
-	Printf.printf "%d: [%s],[%s]\n" (b+1) x y) t (int_list 4);
+	Printf.printf "%d: [%s],[%s]\n" (b+1) x y) t (List_fun.int_list 4);
 	Printf.printf "Choose a card: "; 
-	let card = ((get_int2 (read_line ()) 4) -1) in
+	let card = ((List_fun.get_int2 (read_line ()) 4) -1) in
 	print_string "Choose player: " ; 
 	let tup = List.nth t card in
-	let plyr = ((get_int2 (read_line ()) gstatus.nplyrs ~cplyr: (cplyr+1)) -1) in
-	let this = chk_gems (List.nth plyrs plyr) (fnd_scrd tup) in
+	let plyr = ((List_fun.get_int2 (read_line ()) gstatus.nplyrs ~cplyr: (cplyr+1)) -1) in
+	let this = Player.chk_gems (List.nth plyrs plyr) (Search_deck.fnd_scrd tup) in
 	let nsheet = (List.nth plyrs cplyr).sheet in
-	(List.nth plyrs cplyr).sheet <- fill_sheet this nsheet ~chr:(char_of_int (plyr+49));
+	(List.nth plyrs cplyr).sheet <- Sheet.fill_sheet this nsheet ~chr:(char_of_int (plyr+49));
 	new_scrd card (gstatus.turn mod gstatus.nplyrs) ;
 	print_string "\n[Press Enter to Continue]" ; let _ = read_line () in
 	gstatus.turn <- gstatus.turn + 1
@@ -113,7 +118,7 @@ let view_played_cards () =
 	Printf.printf "All search card on the table:";
 	List.iter2 (fun a n -> let p = a in
 	Printf.printf "\nPlayer %d\n" (n+1);
-	List.iter (Printf.printf "%s\n") p.info) plyrs (int_list gstatus.nplyrs) ;
+	List.iter (Printf.printf "%s\n") p.info) plyrs (List_fun.int_list gstatus.nplyrs) ;
 	print_string "\n[Press Enter to Continue]" ; let _ = read_line () in
 	()
 
@@ -144,9 +149,9 @@ let ai_0 cplyr =
   let tup = List.nth t card in
   let plyr = ref (Random.int (gstatus.nplyrs-1)) in
   if !plyr = cplyr then plyr := (gstatus.nplyrs-1);
-  let this = chk_gems (List.nth plyrs !plyr) (fnd_scrd tup ~ain:(-1)) in
+  let this = Player.chk_gems (List.nth plyrs !plyr) (Search_deck.fnd_scrd tup ~ain:(-1)) in
   let nsheet = (List.nth plyrs cplyr).sheet in
-  (List.nth plyrs cplyr).sheet <- fill_sheet this nsheet ~chr:(char_of_int (!plyr+49));
+  (List.nth plyrs cplyr).sheet <- Sheet.fill_sheet this nsheet ~chr:(char_of_int (!plyr+49));
   new_scrd card cplyr ;
   gstatus.turn <- gstatus.turn + 1;;
 

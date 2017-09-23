@@ -1,4 +1,6 @@
-#use "./src/common_def.ml";;
+(* #use "./common_def.ml";; *)
+open Common_def
+
 
 let chk_gems plyr srch =
 	let g  = plyr.gems in
