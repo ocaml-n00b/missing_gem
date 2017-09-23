@@ -5,3 +5,4 @@ gems:
 clean:
 	rm *.cm*
 	rm *.out
+	rm *.o
