@@ -1,9 +1,24 @@
-let new_scrd plyrs nc np = 
+open Common_def
+
+let new_scrd plyrs draw_deck used_deck nc np = 
 	let p = List.nth plyrs np in
 	let newy = [List.hd draw_deck.cards]@(List_fun.rmv_missing p.scards nc) in
 	draw_deck.cards <- List.tl draw_deck.cards ;
 	used_deck.cards <- [(List.nth p.scards nc)]@used_deck.cards ;
 	p.scards <- newy ;;
+
+(* Try Guessing *)
+let get_guess () =
+  List.iter2 (fun a -> Printf.printf "%d. %s\n" (a+1)) (List_fun.int_list 3) gem;
+  print_string "Guess Gem: ";
+  let x = List.nth gem ((List_fun.get_int2 (read_line ()) 3) -1) in
+  List.iter2 (fun a -> Printf.printf "%d. %s\n" (a+1)) (List_fun.int_list 3) typ;
+  print_string "Guess Type: ";
+  let y = List.nth typ ((List_fun.get_int2 (read_line ()) 3) -1) in
+  List.iter2 (fun a -> Printf.printf "%d. %s\n" (a+1)) (List_fun.int_list 4) color;
+  print_string "Guess Color: ";
+  let z = List.nth color ((List_fun.get_int2 (read_line ()) 4) -1) in
+  (x,y,z);;
 
 let print_hand gstatus plyrs = 
 	let p = (List.nth plyrs (gstatus.turn mod gstatus.nplyrs)) in
@@ -13,7 +28,7 @@ let print_hand gstatus plyrs =
 	print_string "\n[Press Enter to Continue]" ; let _ = read_line () in
 	()
 
-let print_table_search_cards plyrs = 
+let print_table_search_cards gstatus plyrs = 
 	Printf.printf "All search card on the table:";
 	List.iter2 (fun a n -> let p = a in
 	Printf.printf "\nPlayer %d\n" (n+1);
@@ -22,7 +37,7 @@ let print_table_search_cards plyrs =
 	print_string "\n[Press Enter to Continue]" ; let _ = read_line () in
 	()
 	
-let play_search_card gstatus plyrs = 
+let play_search_card gstatus plyrs draw_deck used_deck = 
 	let cplyr = (gstatus.turn mod gstatus.nplyrs) in
 	let t = (List.nth plyrs cplyr).scards in
 	Printf.printf "\nSearch Cards in hand:\n" ;
@@ -36,15 +51,15 @@ let play_search_card gstatus plyrs =
 	let this = Player.chk_gems (List.nth plyrs plyr) (Search_deck.fnd_scrd tup) in
 	let nsheet = (List.nth plyrs cplyr).sheet in
 	(List.nth plyrs cplyr).sheet <- Sheet.fill_sheet this nsheet ~chr:(char_of_int (plyr+49));
-	new_scrd card (gstatus.turn mod gstatus.nplyrs) ;
+	new_scrd plyrs draw_deck used_deck card (gstatus.turn mod gstatus.nplyrs) ;
 	print_string "\n[Press Enter to Continue]" ; let _ = read_line () in
 	gstatus.turn <- gstatus.turn + 1
 
-let change_search_cards gstatus =
-	new_scrd 3 (gstatus.turn mod gstatus.nplyrs); 
-	new_scrd 3 (gstatus.turn mod gstatus.nplyrs); 
-	new_scrd 3 (gstatus.turn mod gstatus.nplyrs); 
-	new_scrd 3 (gstatus.turn mod gstatus.nplyrs);
+let change_search_cards gstatus plyrs draw_deck used_deck =
+	new_scrd plyrs draw_deck used_deck 3 (gstatus.turn mod gstatus.nplyrs); 
+	new_scrd plyrs draw_deck used_deck 3 (gstatus.turn mod gstatus.nplyrs); 
+	new_scrd plyrs draw_deck used_deck 3 (gstatus.turn mod gstatus.nplyrs); 
+	new_scrd plyrs draw_deck used_deck 3 (gstatus.turn mod gstatus.nplyrs);
 	print_endline "Your search cards have been changed!";
 	print_string "\n[Press Enter to Continue]" ; let _ = read_line () in
 	gstatus.turn <- gstatus.turn + 1
@@ -57,7 +72,7 @@ let view_played_cards gstatus plyrs =
 	print_string "\n[Press Enter to Continue]" ; let _ = read_line () in
 	()
 
-let guess_missing_gem gstatus = 
+let guess_missing_gem missing_gem = 
 	let guess = get_guess () in
 	let (x, y, z) = missing_gem in
 	if guess = missing_gem then print_string "You Won! The answer IS "
