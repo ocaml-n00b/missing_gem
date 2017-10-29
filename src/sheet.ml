@@ -35,9 +35,9 @@ let get_plyrs_sheets hand sheet =
 (* Print a users sheet *)
 let prnt_sheet s color =
   let lnstr = "\n-----------------------------------------------------" in
-  print_string ("Information Sheet:\n\n       |    Pearl     |     Opals    |   Diamonds   |\n       | 1  |  2 |  3 | 1  |  2 |  3 | 1  |  2 |  3 |"^lnstr);
+  print_string ("Information Sheet:\n\n       |    Pearl     |     Opal     |   Diamond    |\n       | 1  |  2 |  3 | 1  |  2 |  3 | 1  |  2 |  3 |"^lnstr);
   List.iter2 (fun a b -> Printf.printf "\n%7s|" a; 
-  (String.iter (Printf.printf "  %c |" ) b); print_string lnstr) color s;;
+  (Bytes.iter (Printf.printf "  %c |" ) b); print_string lnstr) color s;;
   
 let sht_init () = ["         "; "         "; "         "; "         "]
 

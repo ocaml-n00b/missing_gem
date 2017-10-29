@@ -29,7 +29,7 @@ let print_hand gstatus plyrs =
 	()
 
 let print_table_search_cards gstatus plyrs = 
-	Printf.printf "All search card on the table:";
+	Printf.printf "All search cards on the table:";
 	List.iter2 (fun a n -> let p = a in
 	Printf.printf "\nPlayer %d\n" (n+1);
 	List.iter (fun b -> let (x, y) = b in

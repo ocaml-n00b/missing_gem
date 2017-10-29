@@ -41,7 +41,7 @@ let (missing_gem, rdeck) =
 let plyrs = 
 	let (plyrs_hands, disc) = (List_fun.deal_gems rdeck gstatus.nplyrs) in
 	let info = Sheet.sht_init() in
-	let dsheet = Sheet.fill_sheet disc info in
+	let dsheet = Sheet.fill_sheet ~chr:('D') disc info in
 	let gplyrs = Sheet.get_plyrs_sheets plyrs_hands dsheet in
 	let tmp_hand = Search_deck.add_scards gplyrs pscards in
 	Player.init_plyrs tmp_hand;;
@@ -91,7 +91,7 @@ try main_loop () with Failure _ -> main_loop ()
 Add AI ->
   [1. Change sheet to matrix for easy computer analysis] (string list not matrix)
   [2. Make print matrix function] (for string list)
-  3. Make info computer friendly
-  4. Design strategy for AI
+   3. Make info computer friendly
+   4. Design strategy for AI
 --------- TODO ----------- *)
 

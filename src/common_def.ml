@@ -7,8 +7,8 @@ let color = ["Red" ; "Blue" ; "Green" ; "Yellow"]
 type player = {
 	gems : (string * string * string) list; 
 	mutable scards : (string * string) list ;
-	mutable sheet : string list;
-	mutable info : string list}
+	mutable sheet : bytes list;
+	mutable info : bytes list}
 
 type deck = {mutable cards : (string * string) list}
 type mcard = {mutable card : (string * string * string)}
