@@ -68,7 +68,7 @@ let view_played_cards gstatus plyrs =
 	Printf.printf "All search card on the table:";
 	List.iter2 (fun a n -> let p = a in
 	Printf.printf "\nPlayer %d\n" (n+1);
-	List.iter (Printf.printf "%s\n") p.info) plyrs (List_fun.int_list gstatus.nplyrs) ;
+	List.iter (fun str -> Printf.printf "%s\n" (Bytes.to_string str)) p.info) plyrs (List_fun.int_list gstatus.nplyrs) ;
 	print_string "\n[Press Enter to Continue]" ; let _ = read_line () in
 	()
 

@@ -39,6 +39,6 @@ let prnt_sheet s color =
   List.iter2 (fun a b -> Printf.printf "\n%7s|" a; 
   (Bytes.iter (Printf.printf "  %c |" ) b); print_string lnstr) color s;;
   
-let sht_init () = ["         "; "         "; "         "; "         "]
+let sht_init () : bytes list = [Bytes.of_string "         "; Bytes.of_string "         ";Bytes.of_string "         ";Bytes.of_string "         "]
 
 
